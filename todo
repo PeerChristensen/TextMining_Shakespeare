@@ -1,0 +1,21 @@
+
+TODO
+
+1 SENTIMENT ---DONE---
+a. simple sentiment analysis of all plays
+  facet wrap plot by play
+c. complex analysis all plays
+  facet wrap plot by play
+
+2 WORD FREQUENCY ---DONE---
+a. td_idf word frequency
+  facet wrap plot by play
+b. word cloud
+
+3 N-gram analysis ---DONE---
+a. bigram frequency
+b. bigram network
+
+4 TOPIC MODELLING ---DONE---
+Topic modelling all plays
+  
