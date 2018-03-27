@@ -7,7 +7,7 @@ library(glue)
 library(stringr)
 library(wordcloud)
 library(tm)
-
+library(wordcloud2)
 
 ##########################################
 #td_idf method - term frequency–inverse document frequency
@@ -90,9 +90,10 @@ for (play in playList){
 p2=playWords %>%
   arrange(desc(tf_idf)) %>%
   mutate(word = factor(word, levels = rev(unique(word)))) %>% 
-  top_n(1000) %>%
+  top_n(10000) %>%
   select(word,n)
 
+set.seed(1112)
 wordcloud2(p2, figPath = "silh2.png", size = 1.5, color = "red", backgroundColor="black")
-letterCloud(p2, word = "SHAKESPEARE", size = 3, color = "random-light", backgroundColor="grey")
+#letterCloud(p2, word = "SHAKESPEARE", size = 3, color = "random-light", backgroundColor="grey")
 

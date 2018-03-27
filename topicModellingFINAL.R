@@ -30,7 +30,7 @@ playWords <- df %>%
 playsDTM <- playWords %>%
   cast_dtm(play, word, n)
 
-playLDA <- LDA(playsDTM, k = 5, control = list(seed = 347))
+playLDA <- LDA(playsDTM, k = 9, control = list(seed = 347))
 
 #per-topic per-word probabilities
 topics <- tidy(playLDA, matrix = "beta")

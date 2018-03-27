@@ -52,7 +52,7 @@ bigramCounts <- bigramSep %>%
 
 # filter for only relatively common combinations
 bigramGraph <- bigramCounts %>%
-  filter(n > 7) %>%
+  filter(n > 15) %>%
   graph_from_data_frame()
 
 bigramGraph
