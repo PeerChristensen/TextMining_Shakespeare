@@ -94,6 +94,10 @@ p2=playWords %>%
   select(word,n)
 
 set.seed(1112)
-wordcloud2(p2, figPath = "silh2.png", size = 1.5, color = "red", backgroundColor="black")
+cloud=wordcloud2(p2, figPath = "silh2.png", size = 0.5, color = "snow", backgroundColor="black")
 #letterCloud(p2, word = "SHAKESPEARE", size = 3, color = "random-light", backgroundColor="grey")
 
+library("htmlwidgets")
+saveWidget(cloud,"tmp.html",selfcontained = F)
+
+webshot("tmp.html","fig_1.pdf", delay =5, vwidth = 480, vheight=480)
