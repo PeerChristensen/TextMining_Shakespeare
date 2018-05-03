@@ -17,27 +17,23 @@ library(wordcloud2)
 playList = list.files(pattern="txt")
 df=data.frame()
 for (play in playList){
-  text=glue(read_file(play))
-  text=removeWords(text,stopwords("en"))
-  text=str_trim(gsub("[A-Z]{2,}","",text))
-  text =tolower(text)
-  text <- data_frame(text = text,play=factor(gsub(".txt","",play))) %>% unnest_tokens(word, text)
-  df =rbind(df,text)
+  text = glue(read_file(play))
+  text = str_trim(gsub("[A-Z]{2,}","",text))
+  text = tolower(text)
+  text = data_frame(text = text, play=factor(gsub(".txt","",play))) %>% 
+    unnest_tokens(word, text) 
+  df   = rbind(df, text)
 }
 
-playWords <- df %>%
+playWords = df %>%
   count(play, word, sort = TRUE) %>%
   ungroup()
-playWords
 
-totalWords <- playWords %>% 
+totalWords = playWords %>% 
   group_by(play) %>% 
   summarise(total = sum(n))
-totalWords
 
-playWords <- left_join(playWords, totalWords)
-
-playWords
+playWords = left_join(playWords, totalWords)
 
 #term frequency, we want to get rid of the long tails
 ggplot(playWords, aes(n/total, fill = play)) +
@@ -45,28 +41,33 @@ ggplot(playWords, aes(n/total, fill = play)) +
   xlim(NA, 0.009) +
   facet_wrap(~play, ncol = 2, scales = "free_y")
 
-#tf idf
-playWords <- playWords %>%
+#tf idf - Notice that idf and thus tf-idf are zero for these extremely common words appearing in all plays
+playWords = playWords %>%
   bind_tf_idf(word, play, n)
-playWords
-#Notice that idf and thus tf-idf are zero for these extremely common words appearing in all plays
 
 #words with high td_idf
-playWords %>%
-  select(-total) %>%
-  arrange(desc(tf_idf))
+playWords = playWords %>%
+  select(-total)  %>% 
+  arrange(play,desc(tf_idf))
 
-playWords %>%
-  arrange(desc(tf_idf)) %>%
-  mutate(word = factor(word, levels = rev(unique(word)))) %>% 
-  group_by(play) %>% 
-  top_n(15) %>% 
-  ungroup %>%
-  ggplot(aes(word, tf_idf, fill = play)) +
+playWords = playWords %>%
+  mutate(word = reorder(word, tf_idf)) %>%
+  group_by(play) %>%
+  top_n(10,tf_idf) %>% 
+  ungroup() %>%
+  arrange(play, tf_idf) %>%
+  mutate(row = row_number()) 
+
+playWords %>% 
+  ggplot(aes(row, tf_idf, fill = play)) +
   geom_col(show.legend = FALSE) +
-  labs(x = NULL, y = "tf-idf") +
+  labs(y = "tf-idf") +
   facet_wrap(~play, ncol = 2, scales = "free") +
+  scale_x_continuous( 
+    breaks = playWords$row,
+    labels = playWords$word) +
   coord_flip()
+
 
 ##########################################
 # wordclouds
@@ -94,10 +95,6 @@ p2=playWords %>%
   select(word,n)
 
 set.seed(1112)
-cloud=wordcloud2(p2, figPath = "silh2.png", size = 0.5, color = "snow", backgroundColor="black")
+wordcloud2(p2, figPath = "silh2.png", size = 0.5, color = "snow", backgroundColor="black")
 #letterCloud(p2, word = "SHAKESPEARE", size = 3, color = "random-light", backgroundColor="grey")
 
-library("htmlwidgets")
-saveWidget(cloud,"tmp.html",selfcontained = F)
-
-webshot("tmp.html","fig_1.pdf", delay =5, vwidth = 480, vheight=480)

@@ -10,7 +10,8 @@ library(tm)
 library(ggplot2)
 library(topicmodels)
 
-omitWords=c("thy","thee","thou","lord","lady","o","act","i","scene","will","shall","come")
+omitWords=c("thy","thee","thou","lord","lady","o","act","i","scene","will","shall","come",
+            "enter", "first")
 
 playList = list.files(pattern="txt")
 df=data.frame()
@@ -41,7 +42,7 @@ as.matrix(topics(playLDA))
 #top terms per topic
 topTerms <- topics %>%
   group_by(topic) %>%
-  top_n(10, beta) %>%
+  top_n(5, beta) %>%
   ungroup() %>%
   arrange(topic, -beta) %>%
   mutate(order = rev(row_number())) # necessary for ordering words

@@ -1,0 +1,242 @@
+---
+title: "Sentiment analysis of Shakespeare's tragedies"
+author: "Peer Christensen"
+date: "3/4/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Outline: <br>
+1. Simple sentiment analysis of one play (Hamlet) <br>
+2. Same method on all Shakespeare's tragedies <b>
+3. complex sentiment analysis <br>
+4. Simple temporal sentiment analysis I <br>
+5. Simple temporal sentiment analysis II <br>
+<p>
+## Install and load packages
+```{r warning=F}
+if(!require("pacman")) install.packages("pacman")
+pacman::p_load(tidyverse,tidytext,glue,stringr,tm,zoo)
+```
+<p>
+## Sentiment analysis of one play (Hamlet)
+<p>
+First, we load in 'Hamlet' and do some cleaning of the text. <br>
+No need to remove any words.
+<p>
+```{r}
+text = glue(read_file("Hamlet.txt"))
+
+tokens = tibble(text = tolower(text)) %>% unnest_tokens(word, text)
+
+tokens
+```
+<p>
+We then do the following with our tokens:
+<p>
+1. subset 'sentiment words' using the 'bing' lexicon <br>
+2. count positive and negative words <br>
+3. switch to wide format <br>
+4. create a new variable calculating N positive - negative words <br>
+5. switch back to long format (for plotting)
+<p>
+```{r message=F}
+sentiments = tokens %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(sentiment) %>%
+  spread(sentiment, n, fill = 0) %>%
+  mutate("+/-" = positive - negative) %>%
+  gather()
+
+sentiments
+```
+<p>
+Now we can plot the results!
+<p>
+```{r}
+sentimentsBars = ggplot(sentiments, aes(x=key, y=value)) + 
+  geom_bar(stat="identity",fill="darkred")
+
+sentimentsBars
+```
+<p>
+But what's in 'bing' and the other available sentiment lexica?
+<p>
+```{r}
+set.seed(7693)
+# bing
+get_sentiments("bing")[sample(nrow(get_sentiments("bing")),10),]
+# nrc
+get_sentiments("nrc")[sample(nrow(get_sentiments("nrc")),10),]
+# afinn
+get_sentiments("afinn")[sample(nrow(get_sentiments("afinn")),10),]
+# loughran
+get_sentiments("loughran")[sample(nrow(get_sentiments("loughran")),10),]
+unique(get_sentiments("loughran")$sentiment)
+
+```
+
+<p>
+## Sentiment analysis of all Shakespeare's tragedies
+<p>
+```{r, warning=F,message=F}
+playList = list.files(pattern=".txt")
+df = tibble()
+
+for (play in playList) {
+  
+  text = glue(read_file(play))
+  tokens = tibble(text = tolower(text)) %>% unnest_tokens(word, text)
+
+  sentiments = tokens %>%
+    inner_join(get_sentiments("bing")) %>%
+    count(sentiment) %>% 
+    spread(sentiment, n, fill = 0) %>% 
+    mutate("+/-" = positive - negative) %>%
+    gather() %>%
+    mutate(Play = play)
+  
+  df = rbind(df,sentiments)
+}
+
+sentimentsBarsAll = ggplot(df, aes(x=key, y=value)) + 
+  geom_bar(stat="identity", fill = "darkred") +
+  facet_wrap(~gsub(".txt","",Play))
+
+sentimentsBarsAll
+```
+<p>
+## Complex sentiment analysis
+Same code as above, except that we choose "nrc" instead of "bing", and change the angle of the x-axis labels so that they all fit, i.e. adding: <br>
+theme(axis.text.x = element_text(angle = 45, hjust = 1))
+<p>
+```{r echo=F, message=F, fig.width=9,fig.height=9}
+playList = list.files(pattern=".txt")
+df = tibble()
+
+for (play in playList) {
+  
+  text = glue(read_file(play))
+  tokens = tibble(text = tolower(text)) %>% unnest_tokens(word, text)
+
+  sentiments = tokens %>%
+    inner_join(get_sentiments("nrc")) %>%
+    count(sentiment) %>% 
+    spread(sentiment, n, fill = 0) %>% 
+    gather() %>%
+    mutate(Play = play)
+  
+  df = rbind(df,sentiments)
+}
+
+sentimentsBarsAll = ggplot(df, aes(x=key, y=value, fill=key)) + 
+  geom_bar(stat="identity") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  facet_wrap(~gsub(".txt","",Play))
+
+sentimentsBarsAll
+```
+<p>
+# Simple temporal sentiment analysis I
+<p>
+We first add row numbers and then create a variable called polarity with values -1 to 1 corresponding to "negative"" and "positive". <br>
+We then use this variable to create another variable containing the "rolling mean" of 50 sentiment words.
+<p>
+```{r warning=F,message=F,fig.width=9}
+for (play in playList){
+
+  text=glue(read_file(play))
+
+  tokens = tibble(text = tolower(text)) %>% unnest_tokens(word, text)
+  tokens = rowid_to_column(tokens, "ID") # create row numbers
+  
+  sentiments = tokens %>%
+  inner_join(get_sentiments("bing")) 
+  
+  sentiments$polarity = c()
+  sentiments$polarity[sentiments$sentiment=="negative"] = -1
+  sentiments$polarity[sentiments$sentiment=="positive"] =  1
+  
+  rollMean<-rollmean(sentiments$polarity, 50,fill = list(NA, NULL, NA))
+  sentiments$rollMean=rollMean
+  
+  plot = ggplot(sentiments) +
+    aes(ID,polarity, fill= sentiment) +
+    geom_col() +
+    geom_line(aes(ID,rollMean)) +
+    ggtitle(gsub(".txt","",play)) +
+    theme_minimal()
+    print(plot)
+}
+```
+<p>
+Each bar represents a negative or positive word in chronological order.<br>
+The lines represent the rolling means.
+<p>
+# Simple temporal sentiment analysis II
+Here, we aggregate our data and compute a mean for every 30 observations.
+<p>
+```{r warning=F,message=F,fig.width=9}
+for (play in playList){
+
+text=glue(read_file(play))
+
+tokens = tibble(text = tolower(text)) %>% unnest_tokens(word, text)
+tokens = rowid_to_column(tokens, "ID")
+
+sentiments = tokens %>%
+  inner_join(get_sentiments("bing"))
+
+sentiments$polarity = NULL
+sentiments$polarity[sentiments$sentiment=="negative"] = -1
+sentiments$polarity[sentiments$sentiment=="positive"] =  1
+
+means=colMeans(matrix(sentiments$polarity, nrow=30))
+
+df=tibble(row=seq(1:length(means)),means)
+
+plot = df %>% 
+  ggplot() +
+  ggtitle(gsub(".txt","",play)) +
+  theme_dark()+
+  aes(row,means,fill=means) +
+  geom_col() +
+  ylim(-1,1) +
+  scale_fill_gradient2(low = "red", mid = "white",
+                       high = "blue", midpoint = 0, space = "Lab",
+                       na.value = "grey50", guide = "colourbar")
+  print(plot)
+}
+```
+
+# BONUS!
+<p>
+```{r, eval=F}
+library(wordcloud2)
+
+df = tibble()
+
+for (play in playList) {
+  
+  text = glue(read_file(play))
+  tokens = tibble(text = tolower(text)) %>% unnest_tokens(word, text)
+  df=rbind(df,tokens)
+}
+
+sentiments = df %>%
+  group_by(word) %>%
+  count(word) %>% 
+  inner_join(get_sentiments("bing")) %>%
+  arrange(desc(n))
+
+set.seed(1112)
+wordcloud2(sentiments, figPath = "silh2.png", size = 1.5, color = "snow", backgroundColor="black")
+```
+
+```{r warning=F, out.width='100%'}
+knitr::include_graphics("sentimentCLoud.png")
+```
+

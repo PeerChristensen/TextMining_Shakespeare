@@ -7,9 +7,9 @@ library(tidytext)
 library(glue)
 library(stringr)
 library(tm)
-library(ggplot2)
+library(zoo)
 
-# 1. simple sentiment analysis
+# 1a. simple sentiment analysis
 
 playList = list.files(pattern="txt")
 df=data.frame()
@@ -39,6 +39,68 @@ sentimentsBarsSimple = ggplot(df, aes(x=Sentiments, y=Values)) +
   facet_wrap(~gsub(".txt","",Play))
 
 sentimentsBarsSimple
+
+# 2a. Temporal sentiment analysis A:
+for (play in playList){
+  #read and preprocess text
+  text=glue(read_file(play))
+  text=str_trim(gsub("[A-Z]{2,}","",text)) # remove uppercase words
+  text =tolower(text) # all words to lowercase
+  text=removeWords(text,stopwords("en")) # remove function words
+  # tokenize
+  tokens = data_frame(text = text) %>% unnest_tokens(word, text)
+  tokens <- tibble::rowid_to_column(tokens, "ID")
+  # Simple sentiments with "bing"
+  sentiments = tokens %>%
+  inner_join(get_sentiments("bing")) 
+  sentiments$polarity = NULL
+  sentiments$polarity[sentiments$sentiment=="negative"] = -1
+  sentiments$polarity[sentiments$sentiment=="positive"] =  1
+  
+  rollMean<-rollmean(sentiments$polarity, 50,fill = list(NA, NULL, NA))
+  sentiments$rollMean=rollMean
+  plot=ggplot(sentiments) +
+    aes(ID,polarity, fill= sentiment) +
+    geom_col() +
+    geom_line(aes(ID,rollMean)) +
+    ggtitle(gsub(".txt","",play)) +
+    theme_minimal()
+    print(plot)
+}
+
+# 2a. Temporal sentiment analysis B:
+
+for (play in playList){
+#read and preprocess text
+text=glue(read_file(play))
+text=str_trim(gsub("[A-Z]{2,}","",text)) # remove uppercase words
+text =tolower(text) # all words to lowercase
+text=removeWords(text,stopwords("en")) # remove function words
+# tokenize
+tokens = data_frame(text = text) %>% unnest_tokens(word, text)
+tokens <- tibble::rowid_to_column(tokens, "ID")
+# Simple sentiments with "bing"
+sentiments = tokens %>%
+  inner_join(get_sentiments("bing")) 
+sentiments$polarity = NULL
+sentiments$polarity[sentiments$sentiment=="negative"] = -1
+sentiments$polarity[sentiments$sentiment=="positive"] =  1
+
+means=colMeans(matrix(sentiments$polarity, nrow=30))
+df=data.frame(row=seq(1:length(means)),means)
+
+plot = df %>% 
+  ggplot() +
+  ggtitle(gsub(".txt","",play)) +
+  theme_dark()+
+  aes(row,means,fill=means) +
+  geom_col() +
+  ylim(-1,1) +
+  scale_fill_gradient2(low = "red", mid = "white",
+                       high = "blue", midpoint = 0, space = "Lab",
+                       na.value = "grey50", guide = "colourbar")
+  print(plot)
+}
 
 ###########################################
 

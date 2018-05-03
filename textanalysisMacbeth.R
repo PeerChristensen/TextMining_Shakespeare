@@ -40,7 +40,7 @@ sentimentsBars
 freq = tokens %>% count(word,sort=T)
 
 #instances with variations of 'blood'
-str_count(tokens, "blood")
+str_count(tokens, c("blood","bloody","bleed","bled","bleeding"))
 
 #word cloud
 wordcloud(words = freq$word, freq = freq$n, min.freq = 1,
